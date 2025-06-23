@@ -1,4 +1,11 @@
-const akaManager = "tz1WCYsbPyHTBcnj4saWG6SRFHECCj2TTzC6"
+// const akaManager = "tz1WCYsbPyHTBcnj4saWG6SRFHECCj2TTzC6"
+const allManagers = [
+    "tz1WCYsbPyHTBcnj4saWG6SRFHECCj2TTzC6",
+    "tz1MV54YmvGCfizFe3Ezy4HBx2etiJ84AKAS",
+    "tz1dTrsHAayEzuYzfwuESRPgcsje3ozAmMtx"
+]
+const allManagerJoin = allManagers.join(",")
+
 const tdManager = "tz1hmpmvpEzrdcvYjunNEGGEtSQgSEwt39ge"
 const akaMinter = "KT1ULea6kxqiYe1A7CZVfMuGmTx7NmDGAph1"
 const akaNFTContract = "KT1AFq5XorPduoYyWxs5gEyrFK6fVjJVbtCj"
@@ -18,6 +25,8 @@ const akaGacha = "KT1JRVrBzSyEX1xnidEgMkujeuc2Q6j5FJzB"
 const akaOffer = "KT1J2C7BsYNnSjQsGoyrSXShhYGkrDDLVGDd"
 const akaMetaverseV2 = "KT1Dn3sambs7KZGW88hH2obZeSzfmCmGvpFo"
 const akaMetaverseV1 = "KT1HGL8vx7DP4xETVikL4LUYvFxSV19DxdFN"
+
+const akaClubFactory = "KT1LHBBvUkooJiccjTwncv6HiUS3tMbjWsBE"
 
 const akaDropV1 = "KT1QZ7nCoug95CDHT6JhcfwMKipJ7UxDaKo9"
 const akaDropV1_1 = "KT1Dag396rQYpBKPtSFEUDfJHUysvRyoQALi"
@@ -183,12 +192,20 @@ async function generateChargeFeeList() {
     }
 }
 
-async function getAlias(address){
-    accountData = await fetch(accountAPI + "?address=" + address).then(response => response.json())
-    if (accountData == undefined || accountData.length == 0)
+async function getContractAlias(address){
+    accountData = await fetch(accountAPI + "/" + address + "?legacy=false").then(response => response.json())
+    if (accountData == undefined)
         return address
-    else if (accountData[0].hasOwnProperty('alias'))
-        return accountData[0].alias
+    else if (accountData.hasOwnProperty('alias'))
+        return accountData.alias
+    else if (accountData.hasOwnProperty('creator')){
+        if (accountData.hasOwnProperty('metadata')){
+            if (accountData.creator.address == akaClubFactory)
+                return "[akaClub] " + accountData.metadata.name
+            else
+                return accountData.metadata.name
+        }
+    }
     else
         return address
 }
@@ -348,7 +365,8 @@ async function fetchAkaWallet(fetchTime){
     // rec
     const akaRecData = await getAPIData(transactionAPI,
         {
-            "target": akaManager,
+            "target.in": allManagerJoin,
+            "sender.ni": allManagerJoin,
             "status": "applied",
             "timestamp.ge": startDateZStr,
             "timestamp.le": endDateZStr
@@ -364,6 +382,8 @@ async function fetchAkaWallet(fetchTime){
         if (name == undefined || name == "")
             name = recData.sender.address
         const addr = recData.sender.address
+        // if (addr.startsWith("KT") && name == addr)
+        //     name = await getContractAlias(addr)
         if (!(addr in recMap))
             recMap[addr] = { "amount": 0, "name": name }
         recMap[addr].amount += recData.amount
@@ -376,7 +396,8 @@ async function fetchAkaWallet(fetchTime){
     // send
     const akaSendData = await getAPIData(transactionAPI,
         {
-            "sender": akaManager,
+            "sender.in": allManagerJoin,
+            "target.ni": allManagerJoin,
             "status": "applied",
             "timestamp.ge": startDateZStr,
             "timestamp.le": endDateZStr
